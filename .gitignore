@@ -98,3 +98,6 @@ $RECYCLE.BIN/
 
 code/
 data/
+
+# Virtual Environment
+.venv/
