@@ -232,31 +232,23 @@ def extract_logits(model, user_seqs, item_num, user2idx, item2idx, config, base_
             
     full_logit_matrix = torch.cat(all_logits, dim=0)
     
-    print("Scaling logits...")
-    scaled_logits = min_max_scale(full_logit_matrix)
-    
-    print("Reordering columns to match original indexing...")
-    col_permutation = []
-    for k in range(item_num):
-        item_id = target_idx2item[k]
-        
-        if item_id in item2idx:
-            model_idx = item2idx[item_id]
-            col_permutation.append(model_idx - 1)
-        else:
-            print(f"Warning: Item {item_id} not found in model mapping.")
-            col_permutation.append(0) 
-        
-    scaled_logits = scaled_logits[:, col_permutation]
-    
+    print("Saving logits...")
     output_dir = config.OUTPUT_DIR
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
-    save_path = os.path.join(output_dir, f"{base_name}.pkl")
-    with open(save_path, 'wb') as f:
-        pickle.dump(scaled_logits.numpy(), f)
-    print(f"Scaled logits saved to {save_path}")
+    save_path = os.path.join(output_dir, f"{base_name}.npy")
+    np.save(save_path, full_logit_matrix.cpu().numpy())
+    print(f"Logits saved to {save_path}")
+
+    mapping_save_path = os.path.join(output_dir, f"{base_name}_mapping.pkl")
+    mapping_data = {
+        'user2idx': user2idx,
+        'item2idx': item2idx
+    }
+    with open(mapping_save_path, 'wb') as f:
+        pickle.dump(mapping_data, f)
+    print(f"Mapping saved to {mapping_save_path}")
 
 def main():
     set_seed(config.SEED)
