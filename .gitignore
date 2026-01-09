@@ -98,6 +98,7 @@ $RECYCLE.BIN/
 
 code/
 data/
+logits/
 
 # Virtual Environment
 .venv/
