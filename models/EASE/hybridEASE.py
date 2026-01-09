@@ -23,7 +23,7 @@ def force_clear_gpu():
     torch.cuda.empty_cache()
     gc.collect()
 
-df = pd.read_csv("../data/train/train_ratings.csv")
+df = pd.read_csv("train/train_ratings.csv")
 df = df.drop('time', axis=1)
 
 user_enc, item_enc = LabelEncoder(), LabelEncoder()
@@ -64,29 +64,31 @@ scores_user = B_user @ X_gpu
 del G_user, P_user, B_user
 force_clear_gpu()
 
-# ensemble_and_save_submission
-def ensemble_and_save_submission(final_scores, filename):
-    print(f"Saving {filename}...")
-    final_scores[X_gpu > 0] = -1e9
-    
-    _, topk = torch.topk(final_scores, k=10, dim=1)
-    topk_np = topk.cpu().numpy()
-    
-    rec_list = []
-    for u_idx in range(n_users):
-        u_id = user_ids[u_idx]
-        for i in range(10):
-            i_id = item_ids[topk_np[u_idx, i]]
-            rec_list.append([u_id, i_id])
-            
-    pd.DataFrame(rec_list, columns=['user', 'item']).to_csv(filename, index=False)
-    print(f"Done: {filename}")
+# ensemble_and_save_npy
+def save_scores_to_npy(final_scores, filename):
+    """
+    final_scores를 받아서 .npy 파일로 저장합니다.
+    """
+    print(f"Starting to save scores to {filename}...")
+
+    # 1. PyTorch Tensor를 Numpy Array로 변환
+    if torch.is_tensor(final_scores):
+        final_scores_np = final_scores.detach().cpu().numpy()
+    else:
+        final_scores_np = final_scores
+
+    # 2. .npy 파일로 저장
+    if not filename.endswith('.npy'):
+        filename += '.npy'
+
+    np.save(filename, final_scores_np)
+    print(f"Done: {filename} (Shape: {final_scores_np.shape})")
 
 # itme-base, user-based, iu55-based, iu73-based, iu37based
-ensemble_and_save_submission(scores_item.clone(), "submission_item_only.csv")
-ensemble_and_save_submission(scores_user.clone(), "submission_user_only.csv")
-ensemble_and_save_submission(0.5 * scores_item + 0.5 * scores_user, "submission_ensemble_55.csv")
-ensemble_and_save_submission(0.7 * scores_item + 0.3 * scores_user, "submission_ensemble_73.csv")
-ensemble_and_save_submission(0.3 * scores_item + 0.7 * scores_user, "submission_ensemble_37.csv")
+save_scores_to_npy(scores_item.clone(), "../logits/EASE_logit_item.npy")
+save_scores_to_npy(scores_user.clone(), "../logits/EASE_logit_user.npy")
+save_scores_to_npy(0.5 * scores_item + 0.5 * scores_user, "../logits/EASE_logit_55.npy")
+save_scores_to_npy(0.7 * scores_item + 0.3 * scores_user, "../logits/EASE_logit_73.npy")
+save_scores_to_npy(0.3 * scores_item + 0.7 * scores_user, "../logits/EASE_logit_37.npy")
 
-print("\nAll submission.csv created successfully!")
+print("\nAll .npy created successfully!")
