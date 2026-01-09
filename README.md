@@ -12,7 +12,7 @@ MovieLens 데이터를 Implicit Feedback 데이터로 전처리한 데이터를 
 
 | 구승민 | 박주연 | 송정호 | 이다검 | 이성재 | 최연우 |
 | --- | --- | --- | --- | --- | --- |
-| <img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/86878502?v=4'> | <img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/83656909?v=4'> | <img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/50672132?v=4'> | <img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/155869202?v=4'> | <img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/223304427?v=4'> | <img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/105337438?v=4'> |
+| <a href = 'https://github.com/gsmin02'><img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/86878502?v=4'></a> | <a href = 'https://github.com/wndus0212'><img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/83656909?v=4'></a> | <a href = 'https://github.com/dynamite885'><img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/50672132?v=4'></a> | <a href = 'https://github.com/DaGoMi1'><img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/155869202?v=4'></a> | <a href = 'https://github.com/localman211'><img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/223304427?v=4'></a> | <a href = 'https://github.com/Choiyeonw00'><img  width="100" height="100" src = 'https://avatars.githubusercontent.com/u/105337438?v=4'></a> |
 
 # 🖥️ 환경
 
