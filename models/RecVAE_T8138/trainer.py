@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from utils import recall_at_k
 import numpy as np
 from tqdm import tqdm
+import copy
 import pandas as pd
 
 class Trainer:
@@ -11,41 +12,77 @@ class Trainer:
         self.model = model
         self.config = config
         self.device = device
+
+        # Composite Prior를 위한 과거 모델 보관
+        self.old_model = copy.deepcopy(model).to(device)
+        self.old_model.eval()
+
         self.optimizer_enc = optim.Adam(self.model.encoder.parameters(), lr=config.train.lr)
         self.optimizer_dec = optim.Adam(self.model.decoder.parameters(), lr=config.train.lr)
-        
-    def loss_function(self, recon_x, x, mu, logvar, beta):
+
+    def loss_function(self, recon_x, x, mu, logvar, beta, old_mu, old_logvar):
         log_softmax_var = F.log_softmax(recon_x, dim=1)
         ce_loss = -(log_softmax_var * x).sum(dim=1).mean()
-        kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+        # (현재 q와 과거 p 사이의 KL 공식)
+        kl_loss = 0.5 * (old_logvar - logvar + (logvar.exp() + (mu - old_mu).pow(2)) / old_logvar.exp() - 1).sum(dim=1).mean()
+        
         return ce_loss + beta * kl_loss
 
     def train_epoch(self, train_loader, epoch):
         self.model.train()
         total_loss = 0
+
+        if epoch % 5 == 0:
+            self.old_model.load_state_dict(self.model.state_dict())
+            self.old_model.eval()
+            print(f"--- Epoch {epoch}: old_model updated (Composite Prior) ---")
+
         beta = min(self.config.train.beta, 
-                   self.config.train.beta * (epoch / (self.config.train.epochs // 2)))
+               self.config.train.beta * (epoch / (self.config.train.epochs // 2)))
         gamma = getattr(self.config.train, 'gamma', 1.0)
 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch:02d}", leave=True)
         for batch in pbar:
             batch = batch.to(self.device)
-            # Encoder Update
+
+            # Prior 정보 미리 추출 (old_model)
+            with torch.no_grad():
+                _, old_mu, old_logvar = self.old_model(batch)
+
+            # Encoder Update (Decoder 고정)
+            for param in self.model.decoder.parameters():
+                param.requires_grad = False
+            for param in self.model.encoder.parameters():
+                param.requires_grad = True
+
             for _ in range(self.config.train.enc_epochs):
                 self.optimizer_enc.zero_grad()
+                # forward 호출 (이미 내부에서 normalize와 dropout 수행)
                 recon_x, mu, logvar = self.model(batch)
-                loss = self.loss_function(recon_x, batch, mu, logvar, beta) * gamma
-                loss.backward()
+                # Encoder 학습 시 gamma 적용
+                loss_enc = self.loss_function(recon_x, batch, mu, logvar, beta, old_mu, old_logvar) * gamma
+                loss_enc.backward()
                 self.optimizer_enc.step()
-            # Decoder Update
+
+            # Decoder Update (Encoder 고정)
+            for param in self.model.decoder.parameters():
+                param.requires_grad = True
+            for param in self.model.encoder.parameters():
+                param.requires_grad = False
+
             self.optimizer_dec.zero_grad()
             recon_x, mu, logvar = self.model(batch)
-            loss = self.loss_function(recon_x, batch, mu, logvar, beta)
-            loss.backward()
+            loss_dec = self.loss_function(recon_x, batch, mu, logvar, beta, old_mu, old_logvar)
+            loss_dec.backward()
             self.optimizer_dec.step()
+
+            # 가중치 고정 해제 (다음 배치를 위해)
+            for param in self.model.parameters():
+                param.requires_grad = True
+                
+            total_loss += loss_dec.item()
+            pbar.set_postfix(loss=f"{loss_dec.item():.4f}", beta=f"{beta:.3f}")
             
-            total_loss += loss.item()
-            pbar.set_postfix(loss=f"{loss.item():.4f}", beta=f"{beta:.3f}")
         return total_loss / len(train_loader)
 
     @torch.no_grad()
